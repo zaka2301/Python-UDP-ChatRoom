@@ -16,6 +16,19 @@ def send_name():
         elif data.decode() == "<NAME_ALREADY_EXIST>":
             print(data.decode())
 
+def send_password () :
+    global name
+    while True :
+        password = input("Pass: ")
+        client.sendto(f"<PASS>{password}".encode(), ("localhost", 2301))
+        data, addr = client.recvfrom(1024)
+        if data.decode() == "<PASS_VALID>" :
+            print("Password valid")
+            break
+        elif data.decode() == "<PASS_INVALID>" :
+            print("Password invalid !")
+
+
 def send_message():
     global name
     while True:
@@ -32,11 +45,15 @@ t0 = threading.Thread(target=send_name)
 t0.start()
 t0.join()
 
-t1 = threading.Thread(target=send_message)
-t2 = threading.Thread(target=receive_message)
-
+t1 = threading.Thread(target=send_password)
 t1.start()
-t2.start()
-
 t1.join()
+
+t2 = threading.Thread(target=send_message)
+t3 = threading.Thread(target=receive_message)
+
+t2.start()
+t3.start()
+
 t2.join()
+t3.join()
