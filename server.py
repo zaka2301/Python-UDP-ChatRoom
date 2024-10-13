@@ -42,6 +42,7 @@ class Server:
         self.port = port
         self.socket.bind((ip, port))
         self.q = MessageQueue()
+        # self.received_sequence = {}
     
     def receive(self):
         password = "123"
