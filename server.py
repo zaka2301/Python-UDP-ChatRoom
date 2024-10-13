@@ -1,20 +1,20 @@
 import socket
 import threading
 
-'''
 class Client:
-    all_client = []
+    all_client = []  
+
     def __init__(self, addr, name):
         self.addr = addr
         self.name = name
-        Client.all_client.append(addr)
-    
+        Client.all_client.append(self)
+
     @classmethod
     def check(cls, addr):
-        return (addr not in all_client)
-'''
-
-        
+        for client in cls.all_client:
+            if client.addr == addr:
+                return True
+        return False
 
 class Server:
     def __init__(self, ip, port):
@@ -27,22 +27,31 @@ class Server:
     def receive(self):
         while True:
             message, addr = self.socket.recvfrom(1024)
-            self.q.enqueue((message, addr))
+
+            if not Client.check(addr):
+                Client(addr) 
+
+            self.q.enqueue((message.decode(), addr))
 
     def get(self):
         return self.q.dequeue()
 
+    def broadcast(self, message, source_addr):
+        for client in Client.all_client:
+            if client.addr != source_addr: 
+                print(f"Broadcasting to {client.addr}")
+                self.socket.sendto(message.encode(), client.addr)
+
     def printLog(self):
         while True:
             while not self.q.empty():
-                tup = self.get()
-                message = tup[0].decode()
-                addr = tup[1]
-                print(f"{addr}:{message}")
-            
+                message, addr = self.get()
+                print(f"Received from {addr}: {message}")
+                self.broadcast(message, addr)
+
     def start(self):
-        t1 = threading.Thread(target=self.receive)
-        t2 = threading.Thread(target=self.printLog)
+        t1 = threading.Thread(target=self.receive)  
+        t2 = threading.Thread(target=self.printLog)  
         t1.start()
         t2.start()
 
@@ -69,6 +78,3 @@ class MessageQueue:
 
 server = Server("localhost", 2301)
 server.start()
-
-
-
