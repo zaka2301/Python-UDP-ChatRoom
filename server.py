@@ -4,9 +4,9 @@ import threading
 class Client:
     all_client = []  
 
-    def __init__(self, addr, name):
+    def __init__(self, addr):
         self.addr = addr
-        self.name = name
+        # self.name = name
         Client.all_client.append(self)
 
     @classmethod
