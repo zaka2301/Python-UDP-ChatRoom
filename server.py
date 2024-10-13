@@ -1,18 +1,27 @@
 import socket
 import threading
-
 class Client:
     all_client = []  
 
-    def __init__(self, addr):
-        self.addr = addr
-        # self.name = name
-        Client.all_client.append(self)
+    def __init__(self):
+        pass
 
+    def addClient(self, addr, name):
+        self.addr = addr
+        self.name = name
+        Client.all_client.append(self)
+        
     @classmethod
-    def check(cls, addr):
+    def checkAddr(cls, addr):
         for client in cls.all_client:
             if client.addr == addr:
+                return True
+        return False
+    
+    @classmethod
+    def checkName(cls, name):
+        for client in cls.all_client:
+            if client.name == name:
                 return True
         return False
 
@@ -27,20 +36,30 @@ class Server:
     def receive(self):
         while True:
             message, addr = self.socket.recvfrom(1024)
-
-            if not Client.check(addr):
-                Client(addr) 
-
-            self.q.enqueue((message.decode(), addr))
+            if message.decode().startswith("<NAME>"):
+                name = message.decode()[message.decode().index(">")+1:]
+                if not Client.checkName(name):
+                    Client().addClient(addr, name)
+                    self.socket.sendto(("<NAME_VALID>").encode(), addr)
+                    print(f"{addr} logged in as {name}")
+                else:
+                    self.socket.sendto(("<NAME_ALREADY_EXIST>").encode(), addr)
+                    print(f"{addr} gave invaldi name")
+                    
+            else:
+                self.q.enqueue((message.decode(), addr))
 
     def get(self):
         return self.q.dequeue()
 
     def broadcast(self, message, source_addr):
         for client in Client.all_client:
+            if client.addr == source_addr:
+                name = client.name
+        for client in Client.all_client:
             if client.addr != source_addr: 
                 print(f"Broadcasting to {client.addr}")
-                self.socket.sendto(message.encode(), client.addr)
+                self.socket.sendto((name+": "+message).encode(), client.addr)
 
     def printLog(self):
         while True:
@@ -54,8 +73,9 @@ class Server:
         t2 = threading.Thread(target=self.printLog)  
         t1.start()
         t2.start()
-
-
+        t1.join()
+        t2.join()
+        
 class MessageQueue:
     def __init__(self):
         self.content = []
