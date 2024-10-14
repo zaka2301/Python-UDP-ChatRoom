@@ -1,80 +1,72 @@
 import socket
 import threading
 
-server_ip = input("Masukkan IP server: ")
+
+class ChatClient :
+    def __init__ (self,server_ip,server_port) :
+        self.server_ip = server_ip
+        self.server_port = server_port
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.client.bind(('localhost', 0))
+        self.name = None
+
+    def send_name(self):
+        while True:
+            self.name = input("Name: ")
+            self.client.sendto(f"<NAME>{self.name}".encode(), (self.server_ip, self.server_port))
+            data, addr = self.client.recvfrom(1024)
+            response = data.decode()
+            if response == "<NAME_VALID>":
+                break
+            elif response == "<NAME_ALREADY_EXIST>":
+                print("Nama sudah dibuat di database, cari nama lain !")
+
+    def send_password (self) :
+        while True :
+            password = input("Pass: ")
+            self.client.sendto(f"<PASS>{password}".encode(), (self.server_ip, self.server_port))
+            data, addr = self.client.recvfrom(1024)
+            response = data.decode()
+            if response == "<PASS_VALID>" :
+                print("Password valid")
+                break
+            elif response == "<PASS_INVALID>" :
+                print("Password invalid !")
+
+
+    def send_message(self):
+        while True:
+            message = input("")
+            # print(f"\033[1A\033[K{self.name}: {message}")
+            self.client.sendto(f"{message}".encode(), (self.server_ip, self.server_port))  # Kirim pesan ke server
+
+    def receive_message(self):
+        while True:
+            data, addr =self.client.recvfrom(1024)
+            print(f"{data.decode()}") # server ngirim balik
+
+    def start (self) :
+        t0 = threading.Thread(target=self.send_name)
+        t0.start()
+        t0.join()
+
+        t1 = threading.Thread(target=self.send_password)
+        t1.start()
+        t1.join()
+
+        t2 = threading.Thread(target=self.send_message)
+        t3 = threading.Thread(target=self.receive_message)
+
+        t2.start()
+        t3.start()
+
+        t2.join()
+        t3.join()
+
+
+server_ip  = input("Masukkan IP server: ")
 server_port = int(input("Masukkan port server: "))
 
-client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+chat_client = ChatClient(server_ip,server_port)
 
-client.bind(('localhost', 0)) # ini port 0 katanya bisa bikin nyuruh OS milih port mana aja yang tersedia
-
-
-def send_name():
-    global name 
-    while True:
-        name = input("Name: ")
-        client.sendto(f"<NAME>{name}".encode(), (server_ip, server_port))
-        data, addr = client.recvfrom(1024)
-        if data.decode() == "<NAME_VALID>":
-            break
-        elif data.decode() == "<NAME_ALREADY_EXIST>":
-            print(data.decode())
-
-def send_password () :
-    global name
-    while True :
-        password = input("Pass: ")
-        client.sendto(f"<PASS>{password}".encode(), (server_ip, server_port))
-        data, addr = client.recvfrom(1024)
-        if data.decode() == "<PASS_VALID>" :
-            print("Password valid")
-            break
-        elif data.decode() == "<PASS_INVALID>" :
-            print("Password invalid !")
-
-
-def send_message():
-    global name
-    while True:
-        message = input("")
-        print(f"\033[1A\033[K{name}: {message}")
-        # seq_msg = f"<SEQ> {seq_number}:{message}"
-        # send_with_ack (seq_msg)
-        # sequence_number +=1
-        client.sendto(f"{message}".encode(), (server_ip, server_port))  # Kirim pesan ke server
-
-# def send_with_ack (message) :
-#     global seq_number
-#     client.settimeout(timeout)
-#     while True :
-#         client.sendto(message.encode(), (server_ip,server_port))
-#         try :
-#             ack,addr = client.recvfrom(1024)
-#             if ack.decode().startwith(f"<ACK>{seq_number}") :
-#                 print(f"ACK diterima untuk sequence : {seq_number}")
-#                 break
-#         except socket.timeout :
-#             print(f"kirim ulang pesan : {message}")
-
-
-def receive_message():
-    while True:
-        data, addr = client.recvfrom(1024)
-        print(f"{data.decode()}") # server ngirim balik
-
-t0 = threading.Thread(target=send_name)
-t0.start()
-t0.join()
-
-t1 = threading.Thread(target=send_password)
-t1.start()
-t1.join()
-
-t2 = threading.Thread(target=send_message)
-t3 = threading.Thread(target=receive_message)
-
-t2.start()
-t3.start()
-
-t2.join()
-t3.join()
+chat_client.start()
