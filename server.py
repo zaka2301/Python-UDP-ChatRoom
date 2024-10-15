@@ -96,8 +96,9 @@ class Server:
             password = "123"
             while True:
                 message, addr = self.socket.recvfrom(1024)
-                if message.decode().startswith("<NAME>"):
-                    name = message.decode()[message.decode().index(">") + 1:]
+                message, addr = self.checkCheckSum(message, addr)
+                if message.startswith("<NAME>") and message != "invalid":
+                    name = message[message.index(">") + 1:]
                     if not Client.checkName(name):
                         Client().addClient(addr, name)
                         self.socket.sendto(("<NAME_VALID>").encode(), addr)
@@ -106,10 +107,10 @@ class Server:
                         self.socket.sendto(("<NAME_ALREADY_EXIST>").encode(), addr)
                         print(f"{addr} gave invalid name")
 
-                elif message.decode().startswith("<PASS>"):
+                elif message.startswith("<PASS>") and message != "invalid":
                     client = Client.getClientByAddr(addr)
                     if client and not client.is_passcheck:
-                        input_password = message.decode()[message.decode().index(">") + 1:]
+                        input_password = message[message.index(">") + 1:]
 
                         if input_password == password:
                             client.passcheck()
@@ -119,23 +120,28 @@ class Server:
                             self.socket.sendto(("<PASS_INVALID>").encode(), addr)
                             print(f"Client {client.name} tidak berhasil masuk ke server")
 
-                else:
-                    client = Client.getClientByAddr(addr)
-                    if client and client.is_passcheck:
-                        try:
-                            message, received_checksum = message.decode().rsplit("|", 1)
-                            received_checksum = int(received_checksum)
-                            calculated_checksum = calculate_checksum(message)
+                elif message != "invalid":
+                    self.q.enqueue((message,addr))
+    
+    def checkCheckSum(self, message, addr):
+        client = Client.getClientByAddr(addr)
+        try:
+            message, received_checksum = message.decode(errors="ignore").rsplit("|", 1)
+            received_checksum = int(received_checksum)
+            calculated_checksum = calculate_checksum(message)
 
-                            if received_checksum == calculated_checksum:
-                                self.q.enqueue((message, addr))
-                                print(f"checksum valid ({received_checksum},{calculated_checksum})")
-                            else:
-                                self.socket.sendto("Checksum gagal, pesan gagal".encode(), addr)
-                        except ValueError: 
-                            self.socket.sendto("Format pesan tidak valid, checksum tidak ditemukan".encode(), addr)
-                    else:
-                        self.socket.sendto("Kamu harus memasukkan password yang benar terlebih dahulu".encode(), addr)
+            if received_checksum == calculated_checksum:
+                print(f"checksum valid ({received_checksum},{calculated_checksum})")
+                return (message, addr)
+            else:
+                self.socket.sendto("Checksum gagal, pesan gagal".encode(), addr)
+                print(f"checksum failed, checksum error {message}")
+                return "invalid", False
+        except ValueError: 
+            self.socket.sendto("Format pesan tidak valid, checksum tidak ditemukan".encode(), addr)
+            print(f"checksum failed, format error {message}")
+            return "invalid", False
+
 
     def get(self):
         return self.q.dequeue()

@@ -55,7 +55,8 @@ class ChatClient:
         while True:
             self.name = input("Name: ")
             if self.name != "<NAME>" and isinstance(self.name, str):
-                self.client.sendto(f"<NAME>{self.name}".encode(), (self.server_ip, self.server_port))
+                checksum = calculate_checksum("<NAME>"+self.name)
+                self.client.sendto(f"<NAME>{self.name}|{checksum}".encode(), (self.server_ip, self.server_port))
                 data, addr = self.client.recvfrom(1024)
                 response = data.decode()
                 if response == "<NAME_VALID>":
@@ -68,7 +69,8 @@ class ChatClient:
     def send_password(self):
         while True:
             password = input("Pass: ")
-            self.client.sendto(f"<PASS>{password}".encode(), (self.server_ip, self.server_port))
+            checksum = calculate_checksum("<PASS>"+password)
+            self.client.sendto(f"<PASS>{password}|{checksum}".encode(), (self.server_ip, self.server_port))
             data, addr = self.client.recvfrom(1024)
             response = data.decode()
             if response == "<PASS_VALID>":
@@ -87,7 +89,7 @@ class ChatClient:
     def receive_message(self):
         while True:
             data, addr = self.client.recvfrom(1024)
-            received_message = data.decode()
+            received_message = data.decode(errors="ignore")
 
             try:
                 sender_part, message_with_checksum = received_message.split(":", 1)
