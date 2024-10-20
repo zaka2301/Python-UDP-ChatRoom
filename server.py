@@ -1,7 +1,10 @@
 import socket
 import threading
 import binascii
+from RC4 import RC4_
 
+key = "ServerKey"
+S_RC4 = RC4_(key)
 
 def calculate_checksum(message):
     return binascii.crc32(message.encode()) & 0xffffffff  # Pastikan hasil CRC32 positif
@@ -97,14 +100,16 @@ class Server:
             while True:
                 message, addr = self.socket.recvfrom(1024)
                 message, addr = self.checkCheckSum(message, addr)
+                if message != "invalid":
+                    message = S_RC4.decrypt(message)
                 if message.startswith("<NAME>") and message != "invalid":
                     name = message[message.index(">") + 1:]
                     if not Client.checkName(name):
                         Client().addClient(addr, name)
-                        self.socket.sendto(("<NAME_VALID>").encode(), addr)
+                        self.socket.sendto((S_RC4.encrypt("<NAME_VALID>")).encode(), addr)
                         print(f"{addr} logged in as {name}")
                     else:
-                        self.socket.sendto(("<NAME_ALREADY_EXIST>").encode(), addr)
+                        self.socket.sendto((S_RC4.encrypt("<NAME_ALREADY_EXIST>")).encode(), addr)
                         print(f"{addr} gave invalid name")
 
                 elif message.startswith("<PASS>") and message != "invalid":
@@ -114,10 +119,10 @@ class Server:
 
                         if input_password == password:
                             client.passcheck()
-                            self.socket.sendto(("<PASS_VALID>").encode(), addr)
+                            self.socket.sendto((S_RC4.encrypt("<PASS_VALID>")).encode(), addr)
                             print(f"Client {client.name} berhasil masuk ke server")
                         else:
-                            self.socket.sendto(("<PASS_INVALID>").encode(), addr)
+                            self.socket.sendto((S_RC4.encrypt("<PASS_INVALID>")).encode(), addr)
                             print(f"Client {client.name} tidak berhasil masuk ke server")
 
                 elif message != "invalid":

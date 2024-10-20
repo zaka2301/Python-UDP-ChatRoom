@@ -1,6 +1,12 @@
 import socket
 import threading
 import binascii
+from RC4 import RC4_
+
+key = "RC4Key"
+S_key = "ServerKey"
+C_RC4 = RC4_(key)
+S_RC4 = RC4_(S_key)
 
 class FormatValidator:
     @staticmethod
@@ -23,6 +29,8 @@ class FormatValidator:
     def get_valid_ip():
         while True:
             server_ip = input("Masukkan IP server: ")
+            if server_ip == "1":
+                return "127.0.0.1"
             if FormatValidator.validate_ip(server_ip):
                 print(f"Format IP '{server_ip}' valid.")
                 return server_ip
@@ -55,10 +63,11 @@ class ChatClient:
         while True:
             self.name = input("Name: ")
             if self.name != "<NAME>" and isinstance(self.name, str):
-                checksum = calculate_checksum("<NAME>"+self.name)
-                self.client.sendto(f"<NAME>{self.name}|{checksum}".encode(), (self.server_ip, self.server_port))
+                encrypted = S_RC4.encrypt("<NAME>"+self.name)
+                checksum = calculate_checksum(encrypted)
+                self.client.sendto(f"{encrypted}|{checksum}".encode(), (self.server_ip, self.server_port))
                 data, addr = self.client.recvfrom(1024)
-                response = data.decode()
+                response = S_RC4.decrypt(data.decode())
                 if response == "<NAME_VALID>":
                     break
                 elif response == "<NAME_ALREADY_EXIST>":
@@ -69,10 +78,11 @@ class ChatClient:
     def send_password(self):
         while True:
             password = input("Pass: ")
-            checksum = calculate_checksum("<PASS>"+password)
-            self.client.sendto(f"<PASS>{password}|{checksum}".encode(), (self.server_ip, self.server_port))
+            encrypted = S_RC4.encrypt("<PASS>"+password)
+            checksum = calculate_checksum(encrypted)
+            self.client.sendto(f"{encrypted}|{checksum}".encode(), (self.server_ip, self.server_port))
             data, addr = self.client.recvfrom(1024)
-            response = data.decode()
+            response = S_RC4.decrypt(data.decode())
             if response == "<PASS_VALID>":
                 print("Password valid")
                 break
@@ -82,6 +92,9 @@ class ChatClient:
     def send_message(self):
         while True:
             message = input("")
+            print(f"\033[1A\033[K{self.name}: {message}")
+            message = C_RC4.encrypt(message)
+            message = S_RC4.encrypt(message)
             checksum = calculate_checksum(message)
             message_with_checksum = f"{message}|{checksum}"
             self.client.sendto(message_with_checksum.encode(), (self.server_ip, self.server_port))
@@ -100,7 +113,7 @@ class ChatClient:
                 calculated_checksum = calculate_checksum(message.strip())
 
                 if received_checksum == calculated_checksum:
-                    print(f"{sender}: {message.strip()}")
+                    print(f"{sender}: {C_RC4.decrypt(message.strip())}")
                 else:
                     print("Pesan gagal, checksum tidak valid.")
             except ValueError:
