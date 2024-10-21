@@ -1,12 +1,28 @@
 import socket
 import threading
 import binascii
+import pandas as pd
+from datetime import datetime
 from RC4 import RC4_
 
 key = "RC4Key"
 S_key = "ServerKey"
 C_RC4 = RC4_(key)
 S_RC4 = RC4_(S_key)
+
+
+def save_message_to_csv(sender, receiver, message, timestamp):
+    new_message = pd.DataFrame({
+        'timestamp': [timestamp],
+        'sender': [sender],
+        'receiver': [receiver],
+        'message': [message]
+    })
+
+    try:
+        new_message.to_csv('chat_history.csv', mode='a', header=False, index=False)
+    except FileNotFoundError:
+        new_message.to_csv('chat_history.csv', mode='w', header=True, index=False)
 
 class FormatValidator:
     @staticmethod
@@ -92,12 +108,20 @@ class ChatClient:
     def send_message(self):
         while True:
             message = input("")
+            if message.lower() == "exit":
+                self.client.sendto(f"<EXIT>".encode(), (self.server_ip, self.server_port))
+                print("menutup koneksi.")
+                break
+
             print(f"\033[1A\033[K{self.name}: {message}")
-            message = C_RC4.encrypt(message)
-            message = S_RC4.encrypt(message)
-            checksum = calculate_checksum(message)
-            message_with_checksum = f"{message}|{checksum}"
+            encrypted_message = C_RC4.encrypt(message)
+            encrypted_message = S_RC4.encrypt(encrypted_message)
+            checksum = calculate_checksum(encrypted_message)
+            message_with_checksum = f"{encrypted_message}|{checksum}"
             self.client.sendto(message_with_checksum.encode(), (self.server_ip, self.server_port))
+
+            # timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            # save_message_to_csv(self.name, 'Server', message, timestamp)
 
     def receive_message(self):
         while True:
@@ -114,6 +138,10 @@ class ChatClient:
 
                 if received_checksum == calculated_checksum:
                     print(f"{sender}: {C_RC4.decrypt(message.strip())}")
+                    decrypted_message = C_RC4.decrypt(message)
+                    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    save_message_to_csv(sender, self.name, decrypted_message, timestamp)  # Save the message
+
                 else:
                     print("Pesan gagal, checksum tidak valid.")
             except ValueError:
@@ -143,4 +171,4 @@ server_ip = FormatValidator.get_valid_ip()
 server_port = FormatValidator.get_valid_port()
 
 chat_client = ChatClient(server_ip, server_port)
-chat_client.start()
+chat_client.start() 
