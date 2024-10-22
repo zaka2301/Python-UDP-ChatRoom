@@ -11,11 +11,10 @@ C_RC4 = RC4_(key)
 S_RC4 = RC4_(S_key)
 
 
-def save_message_to_csv(sender, receiver, message, timestamp):
+def save_message_to_csv(sender, message, timestamp):
     new_message = pd.DataFrame({
         'timestamp': [timestamp],
         'sender': [sender],
-        'receiver': [receiver],
         'message': [message]
     })
 
@@ -142,8 +141,8 @@ class ChatClient:
             message_with_checksum = f"{encrypted_message}|{checksum}"
             self.client.sendto(message_with_checksum.encode(), (self.server_ip, self.server_port))
 
-            # timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            # save_message_to_csv(self.name, 'Server', message, timestamp)
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            save_message_to_csv(self.name, message, timestamp)
 
     def receive_message(self):
         while True:
@@ -162,7 +161,7 @@ class ChatClient:
                     print(f"{sender}: {C_RC4.decrypt(message.strip())}")
                     decrypted_message = C_RC4.decrypt(message)
                     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    save_message_to_csv(sender, self.name, decrypted_message, timestamp)  # Save the message
+                    save_message_to_csv(sender, decrypted_message, timestamp)  # Save the message
 
                 else:
                     print("Pesan gagal, checksum tidak valid.")
