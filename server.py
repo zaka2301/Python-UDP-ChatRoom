@@ -71,7 +71,6 @@ class Server:
                     if client:
                         print(f"{client.name} telah keluar.")
                         Client.all_client.remove(client)  
-                    break  
                     
                 if message.startswith("<NAME>") and message != "invalid":
                     name = message[message.index(">") + 1:]

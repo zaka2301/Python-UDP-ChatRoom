@@ -90,6 +90,7 @@ def calculate_checksum(message):
 
 
 class ChatClient:
+    closed = False
     def __init__(self, server_ip, server_port):
         self.server_ip = server_ip
         self.server_port = server_port
@@ -130,8 +131,11 @@ class ChatClient:
         while True:
             message = input("")
             if message.lower() == "exit":
-                self.client.sendto(f"<EXIT>".encode(), (self.server_ip, self.server_port))
+                message = S_RC4.encrypt("<EXIT>")
+                checksum = calculate_checksum(message)
+                self.client.sendto(f"{message}|{checksum}".encode(), (self.server_ip, self.server_port))
                 print("menutup koneksi.")
+                ChatClient.closed = True
                 break
 
             print(f"\033[1A\033[K{self.name}: {message}")
@@ -145,7 +149,7 @@ class ChatClient:
             save_message_to_csv(self.name, message, timestamp)
 
     def receive_message(self):
-        while True:
+        while True and not ChatClient.closed:
             data, addr = self.client.recvfrom(1024)
             received_message = data.decode(errors="ignore")
 
@@ -167,6 +171,7 @@ class ChatClient:
                     print("Pesan gagal, checksum tidak valid.")
             except ValueError:
                 print("Pesan tidak memiliki format yang benar, tidak ada checksum.")
+        self.client.close()
 
     def start(self):
         t0 = threading.Thread(target=self.send_name)
