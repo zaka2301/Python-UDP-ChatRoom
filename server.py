@@ -62,7 +62,8 @@ class Server:
             message, addr = self.checkCheckSum(message, addr)
             if message != "invalid":
                 message = S_RC4.decrypt(message)
-            
+            if message == "<<CHECK>>":
+                self.socket.sendto((S_RC4.encrypt("<<CHECK>>")).encode(), addr)
             # Tangani kondisi jika client ingin keluar
             if message.startswith("<EXIT>") and message != "invalid":
                 client = Client.getClientByAddr(addr)
@@ -109,11 +110,11 @@ class Server:
                 print(f"checksum valid ({received_checksum},{calculated_checksum})")
                 return (message, addr)
             else:
-                self.socket.sendto("Checksum gagal, pesan gagal".encode(), addr)
+                self.socket.sendto(S_RC4.encrypt("Checksum gagal, pesan gagal").encode(), addr)
                 print(f"checksum failed, checksum error {message}")
                 return "invalid", False
         except ValueError: 
-            self.socket.sendto("Format pesan tidak valid, checksum tidak ditemukan".encode(), addr)
+            self.socket.sendto(S_RC4.encrypt("Format pesan tidak valid, checksum tidak ditemukan").encode(), addr)
             print(f"checksum failed, format error {message}")
             return "invalid", False
 
@@ -166,6 +167,8 @@ class MessageQueue:
         self.content.pop(0)
         self.len -= 1
         return message
-
-server = Server("localhost", 23010)
+IP = socket.gethostbyname(socket.gethostname())
+server = Server(IP, 2301)
+print(f"Server IP: {IP}")
+print(f"Server Port: {2301}")
 server.start()

@@ -48,7 +48,7 @@ class FormatValidator:
             if server_ip == "1":
                 return "127.0.0.1"
             if FormatValidator.validate_ip(server_ip):
-                print(f"Format IP '{server_ip}' valid.")
+                #print(f"Format IP '{server_ip}' valid.")
                 return server_ip
             else:
                 print(f"Format IP '{server_ip}' tidak valid. Harap masukkan IP yang benar (IPv4 atau IPv6).")
@@ -58,10 +58,32 @@ class FormatValidator:
         while True:
             server_port = input("Masukkan port server: ")
             if FormatValidator.validate_port(server_port):
-                print(f"Format port '{server_port}' valid.")
+                #print(f"Format port '{server_port}' valid.")
                 return int(server_port)
             else:
                 print(f"Format port '{server_port}' tidak valid. Port harus berupa angka antara 1 dan 65535.")
+
+    @staticmethod
+    def is_ip_port_open(ip, port):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        message = S_RC4.encrypt("<<CHECK>>")
+        checksum = calculate_checksum(message)
+        s.sendto(f"{message}|{checksum}".encode(), (ip, port))
+        s.settimeout(1)
+        try:
+            data, addr = s.recvfrom(1024)
+            s.close()
+            print(f"{ip}:{port} is open")
+            return True
+        except ConnectionResetError:
+            s.close()
+            print(f"{ip}:{port} is closed")
+            return False
+        except socket.timeout:
+            s.close()
+            print(f"{ip}:{port} is closed")
+            return False
+        
 
 
 def calculate_checksum(message):
@@ -167,8 +189,11 @@ class ChatClient:
 
 
 # Dapatkan input server IP dan port yang valid menggunakan class FormatValidator
-server_ip = FormatValidator.get_valid_ip()
-server_port = FormatValidator.get_valid_port()
-
+IP = socket.gethostbyname(socket.gethostname())
+is_open = False
+while not is_open:
+    server_ip = FormatValidator.get_valid_ip()
+    server_port = FormatValidator.get_valid_port()
+    is_open = FormatValidator.is_ip_port_open(server_ip, server_port)
 chat_client = ChatClient(server_ip, server_port)
 chat_client.start() 
