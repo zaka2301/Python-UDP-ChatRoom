@@ -65,38 +65,39 @@ class Server:
             if message == "<<CHECK>>":
                 self.socket.sendto((S_RC4.encrypt("<<CHECK>>")).encode(), addr)
             # Tangani kondisi jika client ingin keluar
-            if message.startswith("<EXIT>") and message != "invalid":
-                client = Client.getClientByAddr(addr)
-                if client:
-                    print(f"{client.name} telah keluar.")
-                    Client.all_client.remove(client)  
-                break  
-                
-            if message.startswith("<NAME>") and message != "invalid":
-                name = message[message.index(">") + 1:]
-                if not Client.checkName(name):
-                    Client().addClient(addr, name)
-                    self.socket.sendto((S_RC4.encrypt("<NAME_VALID>")).encode(), addr)
-                    print(f"{addr} logged in as {name}")
-                else:
-                    self.socket.sendto((S_RC4.encrypt("<NAME_ALREADY_EXIST>")).encode(), addr)
-                    print(f"{addr} gave invalid name")
-
-            elif message.startswith("<PASS>") and message != "invalid":
-                client = Client.getClientByAddr(addr)
-                if client and not client.is_passcheck:
-                    input_password = message[message.index(">") + 1:]
-
-                    if input_password == password:
-                        client.passcheck()
-                        self.socket.sendto((S_RC4.encrypt("<PASS_VALID>")).encode(), addr)
-                        print(f"Client {client.name} berhasil masuk ke server")
+            else:
+                if message.startswith("<EXIT>") and message != "invalid":
+                    client = Client.getClientByAddr(addr)
+                    if client:
+                        print(f"{client.name} telah keluar.")
+                        Client.all_client.remove(client)  
+                    break  
+                    
+                if message.startswith("<NAME>") and message != "invalid":
+                    name = message[message.index(">") + 1:]
+                    if not Client.checkName(name):
+                        Client().addClient(addr, name)
+                        self.socket.sendto((S_RC4.encrypt("<NAME_VALID>")).encode(), addr)
+                        print(f"{addr} logged in as {name}")
                     else:
-                        self.socket.sendto((S_RC4.encrypt("<PASS_INVALID>")).encode(), addr)
-                        print(f"Client {client.name} tidak berhasil masuk ke server")
+                        self.socket.sendto((S_RC4.encrypt("<NAME_ALREADY_EXIST>")).encode(), addr)
+                        print(f"{addr} gave invalid name")
 
-            elif message != "invalid":
-                self.q.enqueue((message, addr))
+                elif message.startswith("<PASS>") and message != "invalid":
+                    client = Client.getClientByAddr(addr)
+                    if client and not client.is_passcheck:
+                        input_password = message[message.index(">") + 1:]
+
+                        if input_password == password:
+                            client.passcheck()
+                            self.socket.sendto((S_RC4.encrypt("<PASS_VALID>")).encode(), addr)
+                            print(f"Client {client.name} berhasil masuk ke server")
+                        else:
+                            self.socket.sendto((S_RC4.encrypt("<PASS_INVALID>")).encode(), addr)
+                            print(f"Client {client.name} tidak berhasil masuk ke server")
+
+                elif message != "invalid":
+                    self.q.enqueue((message, addr))
 
     
     def checkCheckSum(self, message, addr):
