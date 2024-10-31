@@ -10,6 +10,15 @@ S_key = "ServerKey"
 C_RC4 = RC4_(key)
 S_RC4 = RC4_(S_key)
 
+invalid_word = ["<<INVALID>>", 
+                "<<CHECK>>", 
+                "<EXIT>", 
+                "<NAME>", 
+                "<PASS>", 
+                "<NAME_VALID>", 
+                "<NAME_ALREADY_EXIST>", 
+                "<PASS_VALID>", 
+                "<PASS_INVALID>"]
 
 def save_message_to_csv(sender, message, timestamp):
     new_message = pd.DataFrame({
@@ -100,7 +109,7 @@ class ChatClient:
     def send_name(self):
         while True:
             self.name = input("Name: ")
-            if self.name != "<NAME>" and isinstance(self.name, str):
+            if not any(x in self.name for x in invalid_word) and isinstance(self.name, str):
                 encrypted = S_RC4.encrypt("<NAME>"+self.name)
                 checksum = calculate_checksum(encrypted)
                 self.client.sendto(f"{encrypted}|{checksum}".encode(), (self.server_ip, self.server_port))
@@ -116,15 +125,18 @@ class ChatClient:
     def send_password(self):
         while True:
             password = input("Pass: ")
-            encrypted = S_RC4.encrypt("<PASS>"+password)
-            checksum = calculate_checksum(encrypted)
-            self.client.sendto(f"{encrypted}|{checksum}".encode(), (self.server_ip, self.server_port))
-            data, addr = self.client.recvfrom(1024)
-            response = S_RC4.decrypt(data.decode())
-            if response == "<PASS_VALID>":
-                print("Password valid")
-                break
-            elif response == "<PASS_INVALID>":
+            if not any(x in password for x in invalid_word):
+                encrypted = S_RC4.encrypt("<PASS>"+password)
+                checksum = calculate_checksum(encrypted)
+                self.client.sendto(f"{encrypted}|{checksum}".encode(), (self.server_ip, self.server_port))
+                data, addr = self.client.recvfrom(1024)
+                response = S_RC4.decrypt(data.decode())
+                if response == "<PASS_VALID>":
+                    print("Password valid")
+                    break
+                elif response == "<PASS_INVALID>":
+                    print("Password invalid!")
+            else:
                 print("Password invalid!")
 
     def send_message(self):
@@ -137,16 +149,18 @@ class ChatClient:
                 print("menutup koneksi.")
                 ChatClient.closed = True
                 break
+            if not any(x in message for x in invalid_word):
+                print(f"\033[1A\033[K{self.name}: {message}")
+                encrypted_message = C_RC4.encrypt(message)
+                encrypted_message = S_RC4.encrypt(encrypted_message)
+                checksum = calculate_checksum(encrypted_message)
+                message_with_checksum = f"{encrypted_message}|{checksum}"
+                self.client.sendto(message_with_checksum.encode(), (self.server_ip, self.server_port))
 
-            print(f"\033[1A\033[K{self.name}: {message}")
-            encrypted_message = C_RC4.encrypt(message)
-            encrypted_message = S_RC4.encrypt(encrypted_message)
-            checksum = calculate_checksum(encrypted_message)
-            message_with_checksum = f"{encrypted_message}|{checksum}"
-            self.client.sendto(message_with_checksum.encode(), (self.server_ip, self.server_port))
-
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            save_message_to_csv(self.name, message, timestamp)
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                save_message_to_csv(self.name, message, timestamp)
+            else:
+                print(f"message contain invalid word")
 
     def receive_message(self):
         while True and not ChatClient.closed:
