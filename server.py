@@ -106,7 +106,7 @@ class Server:
     def checkCheckSum(self, message, addr):
         client = Client.getClientByAddr(addr)
         try:
-            message, received_checksum = message.decode(errors="ignore").rsplit("|", 1)
+            message, received_checksum = message.decode(errors="ignore").rsplit("<<-<|>->>", 1)
             received_checksum = int(received_checksum)
             calculated_checksum = calculate_checksum(message)
 
@@ -134,7 +134,7 @@ class Server:
             if client.addr != source_addr: 
                 print(f"Broadcasting to {client.addr}")
                 checksum = calculate_checksum(message)
-                message_with_checksum = f"{name}: {message}|{checksum}"
+                message_with_checksum = f"{name}: {message}<<-<|>->>{checksum}"
                 self.socket.sendto(message_with_checksum.encode(), client.addr)
 
     def printLog(self):

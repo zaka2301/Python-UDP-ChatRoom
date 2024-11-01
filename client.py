@@ -18,7 +18,8 @@ invalid_word = ["<<INVALID>>",
                 "<NAME_VALID>", 
                 "<NAME_ALREADY_EXIST>", 
                 "<PASS_VALID>", 
-                "<PASS_INVALID>"]
+                "<PASS_INVALID>",
+                "<<-<|>->>"]
 
 def save_message_to_csv(sender, message, timestamp):
     new_message = pd.DataFrame({
@@ -76,7 +77,7 @@ class FormatValidator:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         message = S_RC4.encrypt("<<CHECK>>")
         checksum = calculate_checksum(message)
-        s.sendto(f"{message}|{checksum}".encode(), (ip, port))
+        s.sendto(f"{message}<<-<|>->>{checksum}".encode(), (ip, port))
         s.settimeout(1)
         try:
             data, addr = s.recvfrom(1024)
@@ -112,7 +113,7 @@ class ChatClient:
             if not any(x in self.name for x in invalid_word) and isinstance(self.name, str):
                 encrypted = S_RC4.encrypt("<NAME>"+self.name)
                 checksum = calculate_checksum(encrypted)
-                self.client.sendto(f"{encrypted}|{checksum}".encode(), (self.server_ip, self.server_port))
+                self.client.sendto(f"{encrypted}<<-<|>->>{checksum}".encode(), (self.server_ip, self.server_port))
                 data, addr = self.client.recvfrom(1024)
                 response = S_RC4.decrypt(data.decode())
                 if response == "<NAME_VALID>":
@@ -128,7 +129,7 @@ class ChatClient:
             if not any(x in password for x in invalid_word):
                 encrypted = S_RC4.encrypt("<PASS>"+password)
                 checksum = calculate_checksum(encrypted)
-                self.client.sendto(f"{encrypted}|{checksum}".encode(), (self.server_ip, self.server_port))
+                self.client.sendto(f"{encrypted}<<-<|>->>{checksum}".encode(), (self.server_ip, self.server_port))
                 data, addr = self.client.recvfrom(1024)
                 response = S_RC4.decrypt(data.decode())
                 if response == "<PASS_VALID>":
@@ -145,7 +146,7 @@ class ChatClient:
             if message.lower() == "exit":
                 message = S_RC4.encrypt("<EXIT>")
                 checksum = calculate_checksum(message)
-                self.client.sendto(f"{message}|{checksum}".encode(), (self.server_ip, self.server_port))
+                self.client.sendto(f"{message}<<-<|>->>{checksum}".encode(), (self.server_ip, self.server_port))
                 print("menutup koneksi.")
                 ChatClient.closed = True
                 break
@@ -154,7 +155,7 @@ class ChatClient:
                 encrypted_message = C_RC4.encrypt(message)
                 encrypted_message = S_RC4.encrypt(encrypted_message)
                 checksum = calculate_checksum(encrypted_message)
-                message_with_checksum = f"{encrypted_message}|{checksum}"
+                message_with_checksum = f"{encrypted_message}<<-<|>->>{checksum}"
                 self.client.sendto(message_with_checksum.encode(), (self.server_ip, self.server_port))
 
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -171,7 +172,7 @@ class ChatClient:
                 sender_part, message_with_checksum = received_message.split(":", 1)
                 sender = sender_part.strip()
 
-                message, received_checksum = message_with_checksum.rsplit("|", 1)
+                message, received_checksum = message_with_checksum.rsplit("<<-<|>->>", 1)
                 received_checksum = int(received_checksum)
                 calculated_checksum = calculate_checksum(message.strip())
 
